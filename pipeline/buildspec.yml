@@ -1,0 +1,39 @@
+version: 0.2
+
+# Runs in CodeBuild. Env vars WEB_REPO_URI, WORKER_REPO_URI, WEB_CONTAINER and
+# WORKER_CONTAINER are injected by infrastructure/lib/pipeline-stack.ts.
+env:
+  shell: bash
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - pip install -q -r app/requirements-dev.txt
+  pre_build:
+    commands:
+      - echo "Running unit tests"
+      - (cd app && python -m pytest -q)
+      - export TAG=$(echo "$CODEBUILD_RESOLVED_SOURCE_VERSION" | cut -c1-7)
+      - echo "Image tag $TAG"
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "${WEB_REPO_URI%%/*}"
+  build:
+    commands:
+      - docker build --build-arg APP_VERSION="$TAG" -f app/web/Dockerfile -t "$WEB_REPO_URI:$TAG" -t "$WEB_REPO_URI:latest" app
+      - docker build --build-arg APP_VERSION="$TAG" -f app/worker/Dockerfile -t "$WORKER_REPO_URI:$TAG" -t "$WORKER_REPO_URI:latest" app
+  post_build:
+    commands:
+      - docker push "$WEB_REPO_URI:$TAG"
+      - docker push "$WEB_REPO_URI:latest"
+      - docker push "$WORKER_REPO_URI:$TAG"
+      - docker push "$WORKER_REPO_URI:latest"
+      # The ECS deploy action reads these. "name" must equal the container name in the task definition.
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$WEB_CONTAINER" "$WEB_REPO_URI:$TAG" > imagedefinitions-web.json
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$WORKER_CONTAINER" "$WORKER_REPO_URI:$TAG" > imagedefinitions-worker.json
+      - cat imagedefinitions-web.json imagedefinitions-worker.json
+
+artifacts:
+  files:
+    - imagedefinitions-web.json
+    - imagedefinitions-worker.json

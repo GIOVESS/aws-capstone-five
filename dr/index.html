@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resilient Shop is briefly unavailable</title>
+<style>
+  :root { --bg:#0b1d26; --panel:#12303d; --ink:#e8f1f2; --mut:#8fb0b8; --acc:#f4b942; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--bg); color:var(--ink);
+         font:16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; padding:24px; }
+  main { max-width:560px; background:var(--panel); border-radius:12px; padding:32px; border-top:4px solid var(--acc); }
+  h1 { margin:0 0 8px; font-size:1.6rem; }
+  p { color:var(--mut); margin:8px 0; }
+  .tag { display:inline-block; margin-top:16px; padding:4px 12px; border-radius:999px; background:#0b1d26; color:var(--acc); font-size:.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>We will be right back</h1>
+  <p>The shop is temporarily unavailable while our systems recover. Your orders and data are safe.</p>
+  <p>Please try again in a few minutes.</p>
+  <span class="tag">Served from the disaster recovery site (Amazon S3)</span>
+</main>
+</body>
+</html>
