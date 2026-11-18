@@ -57,7 +57,7 @@ Prerequisites: an AWS account, AWS CloudShell, a GitHub connection in `AVAILABLE
 ```bash
 git clone https://github.com/GIOVESS/aws-capstone-five.git
 cd aws-capstone-five/infrastructure
-npm install
+npm ci --omit=dev   # CloudShell has about 1 GB of disk, this keeps node_modules near 220 MB
 export ALERT_EMAIL=you@example.com
 export ZONE_NAME=cap5.example.com
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -143,7 +143,7 @@ The full procedure for each failure is in [docs/DR_RUNBOOK.md](docs/DR_RUNBOOK.m
 
 ```bash
 cd app && pip install -r requirements-dev.txt && python -m pytest -q     # 17 tests
-cd infrastructure && npm test                                            # 20 tests
+cd infrastructure && npm ci && npm test                                            # 20 tests
 ```
 
 CodeBuild runs the application tests before building images, so a failing test stops the pipeline.
