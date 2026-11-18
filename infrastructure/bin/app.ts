@@ -25,14 +25,19 @@ const platform = new PlatformStack(app, 'Cap5Platform', {
 });
 
 // The pipeline needs an AVAILABLE GitHub connection, so it is only added once CONNECTION_ARN is exported.
-if (process.env.CONNECTION_ARN) {
+// `aws ... --output text` prints the word "None" when nothing matched, so check the shape of the value.
+const connectionArn = process.env.CONNECTION_ARN;
+if (connectionArn !== undefined && connectionArn !== '' && !/^arn:aws:(codeconnections|codestar-connections):/.test(connectionArn)) {
+  throw new Error(`CONNECTION_ARN is "${connectionArn}", not a connection ARN. Create a GitHub connection and wait for status AVAILABLE.`);
+}
+if (connectionArn) {
   new PipelineStack(app, 'Cap5Pipeline', {
     env,
     webRepo: foundation.webRepo,
     workerRepo: foundation.workerRepo,
     webService: platform.compute.webService,
     workerService: platform.compute.workerService,
-    connectionArn: process.env.CONNECTION_ARN,
+    connectionArn,
     owner: process.env.GITHUB_OWNER,
     repo: process.env.GITHUB_REPO,
     branch: process.env.GITHUB_BRANCH,
