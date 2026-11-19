@@ -10,6 +10,8 @@ show() {
     --query 'DBInstances[0].{status:DBInstanceStatus,primaryAZ:AvailabilityZone,standbyAZ:SecondaryAvailabilityZone,multiAZ:MultiAZ}' --output table
 }
 
+before_az() { aws rds describe-db-instances --db-instance-identifier "$DB" --query 'DBInstances[0].AvailabilityZone' --output text; }
+BEFORE="$(before_az)"
 say "Before failover"; show
 say "Forcing failover"
 aws rds reboot-db-instance --db-instance-identifier "$DB" --force-failover >/dev/null
@@ -24,6 +26,11 @@ for i in $(seq 1 40); do
   sleep 10
 done
 
-say "After failover"; show
+# The AZ readout can lag the "available" status, so wait up to 2 minutes for the swap.
+for _ in $(seq 1 24); do
+  [ "$(before_az)" != "$BEFORE" ] && break
+  sleep 5
+done
+say "After failover (primary was ${BEFORE}, now $(before_az))"; show
 aws rds describe-events --source-identifier "$DB" --source-type db-instance --duration 30 \
   --query 'Events[].[Date,Message]' --output text | grep -i -E 'failover|Multi-AZ' || true

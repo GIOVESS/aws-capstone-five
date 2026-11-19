@@ -109,33 +109,49 @@ Pushing to `main` starts the pipeline. Build and deploy take about 8 minutes.
 
 ## Evidence
 
-Behaviour is described as planned first and observed second. Items marked pending are filled after the live run.
+Each section states what was planned and what was observed in the live run on 2026-11-18 and 2026-11-19 (times in UTC). Screenshots are in `docs/screenshots/`.
 
 ### CI/CD proof
 
-Pending: screenshot `docs/screenshots/01-pipeline-success.png` of a successful CodePipeline execution (Source, Build, Deploy web, Deploy worker).
+Planned: a push to `main` runs tests, builds both images, pushes them to ECR and rolls both ECS services.
+
+Observed:
+
+* The first execution of `cap5-delivery` succeeded in all three stages (Source, Build, Deploy with `DeployWeb` and `DeployWorker`).
+* CodeBuild ran the pytest suite, built `cap5-web` and `cap5-worker`, pushed `:90b6a0e` and `:latest`, and wrote `imagedefinitions-web.json` and `imagedefinitions-worker.json`.
+* `/health` changed from `"version":"bootstrap"` to `"version":"90b6a0e"`, and the web service finished with one `PRIMARY` deployment in state `COMPLETED`.
 
 ### Scaling proof
 
-Drill: `python3 scripts/load_queue.py --count 3000 --seconds 3`, then watch the `cap5-platform` dashboard.
+Drill: 3000 synthetic messages (3 seconds of work each) sent with `scripts/load_queue.py`, worker service watched every 30 seconds.
 
-Planned: queue depth rises, target tracking adds worker tasks up to 10, depth drains, tasks scale back in.
+| Time (UTC) | Event |
+|---|---|
+| 18:49:09 | Load sent, queue depth about 2900, 1 worker task |
+| 18:53:58 | Target tracking raised desired tasks from 1 to 10 (about 4 min 50 s after the load) |
+| 18:54:29 | 10 tasks running |
+| 18:58:11 | Queue drained to 0 (3.5 minutes after the scale-out) |
+| about 19:10 to 19:15 | Scale-in back to 1 task |
 
-Pending: screenshot `docs/screenshots/02-worker-scaling.png` and observed task counts and timings.
+One task alone processes about 1.3 messages per second, so 3000 messages would have taken about 37 minutes. With 10 tasks the backlog cleared in about 4 minutes. The 4 minute 50 second delay before scale-out comes from the alarm needing several consecutive one-minute datapoints and from SQS metric latency. Scale-in is deliberately slower (about 15 minutes of low readings).
+
+A test order placed before the load went `PENDING` then `COMPLETED` in under 4 seconds, which confirms the path web, SQS, worker, database.
 
 ### AWS Backup plan
 
-Planned: vault `cap5-vault`, plan `cap5-daily`, rule `daily-rds` at 05:00 UTC, 14 day retention, resource selection `cap5-rds`.
+Planned: vault `cap5-vault`, plan `cap5-daily`, rule `daily-rds` at 05:00 UTC, 14 day retention, selection `cap5-rds`.
 
-Pending: screenshots `03-backup-plan.png` and `04-backup-job.png` from `./scripts/backup_now.sh`.
+Observed: the scheduled job ran by itself on 2026-11-19 at 05:00 UTC and left a `COMPLETED` RDS recovery point in `cap5-vault`.
 
 ### Failover proof
 
-Route 53 drill: `./scripts/simulate_failover.sh down`, `watch`, then `up`.
+RDS Multi-AZ drill (`./scripts/rds_failover.sh`, forced failover at 16:37:51 UTC):
 
-RDS drill: `./scripts/rds_failover.sh`.
+* `GET /api/products` returned 200 on every probe for the whole drill, served from the cache.
+* `POST /api/orders` returned 202 on every probe except one (16:39:21, a timeout), then recovered.
+* RDS events: `Multi-AZ instance failover started` at 16:39:07 and `Multi-AZ instance failover completed` at 16:39:32, so the database was unreachable for about 25 seconds.
 
-Pending: screenshots `05-route53-failover.png`, `06-error-page.png`, `07-rds-failover.png` and the observed timings.
+Route 53 drill (`./scripts/simulate_failover.sh`): see the section below once run.
 
 The full procedure for each failure is in [docs/DR_RUNBOOK.md](docs/DR_RUNBOOK.md).
 
