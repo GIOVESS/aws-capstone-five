@@ -151,6 +151,14 @@ RDS Multi-AZ drill (`./scripts/rds_failover.sh`, forced failover at 16:37:51 UTC
 * `POST /api/orders` returned 202 on every probe except one (16:39:21, a timeout), then recovered.
 * RDS events: `Multi-AZ instance failover started` at 16:39:07 and `Multi-AZ instance failover completed` at 16:39:32, so the database was unreachable for about 25 seconds.
 
+Second run (17:03 UTC) with the improved script, which records the AZ before and after:
+
+* Primary moved from `us-east-1b` to `us-east-1a` and the old primary became the standby, so the swap is confirmed.
+* `GET /api/products` returned 200 on every probe. `POST /api/orders` returned 202 except one timeout at 17:03:25.
+* RDS events: failover started 17:03:18, completed 17:04:02 (about 44 seconds).
+
+![RDS failover drill](docs/screenshots/07-rds-failover.png)
+
 Route 53 drill (`./scripts/simulate_failover.sh`): see the section below once run.
 
 The full procedure for each failure is in [docs/DR_RUNBOOK.md](docs/DR_RUNBOOK.md).
