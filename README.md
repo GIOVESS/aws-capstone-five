@@ -159,7 +159,15 @@ Second run (17:03 UTC) with the improved script, which records the AZ before and
 
 ![RDS failover drill](docs/screenshots/07-rds-failover.png)
 
-Route 53 drill (`./scripts/simulate_failover.sh`): see the section below once run.
+Route 53 health check and alarm (`./scripts/simulate_failover.sh down`, 2026-11-19):
+
+* With the web service scaled to zero the ALB answered 503, every Route 53 health checker reported `Failure: HTTP Status Code 503` within about 40 seconds, and the `cap5-Route53Primary` alarm went to `ALARM` and emailed the subscriber about 2.5 minutes after the outage began.
+* After `./scripts/simulate_failover.sh up` the first 200 came back about 45 seconds later and all checkers were healthy about a minute after that.
+* The S3 error page is served correctly when its website endpoint is requested directly. The DNS flip to that page is still being verified and is not claimed here.
+
+![CloudWatch alarm email](docs/screenshots/22-alarm-email.png)
+
+![Failback after restoring the web tier](docs/screenshots/23-failback.png)
 
 The full procedure for each failure is in [docs/DR_RUNBOOK.md](docs/DR_RUNBOOK.md).
 
